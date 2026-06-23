@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>App de Treino - Cutting & Lombar Safe</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 15px;
+            padding-bottom: 150px; /* Mais espaço pra barra fixa não cobrir o último treino */
+        }
+
+        header { text-align: center; margin-bottom: 20px; }
+        h1 { color: var(--accent); font-size: 1.8rem; margin-bottom: 5px; }
+        p.subtitle { color: #94a3b8; font-size: 0.9rem; }
+
+        /* Day Selector */
+        .day-selector {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            outline: none;
+        }
+
+        /* Exercise Cards */
+        #workout-container { display: flex; flex-direction: column; gap: 15px; }
+
+        .exercise-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid var(--accent);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .exercise-header {
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: bold; font-size: 1.1em; margin-bottom: 8px; color: #f8fafc;
+        }
+
+        .sets-reps { color: var(--accent); font-weight: bold; }
+
+        .details { font-size: 0.85em; color: #94a3b8; margin-bottom: 12px; line-height: 1.4; }
+        .details strong { color: var(--danger); }
+
+        .input-group { display: flex; gap: 10px; }
+        
+        .input-group input {
+            width: 100%; padding: 10px; border-radius: 6px;
+            border: 1px solid #334155; background-color: #0f172a;
+            color: white; text-align: center; font-size: 1rem;
+        }
+        .input-group input:focus { border-color: var(--accent); outline: none; }
+
+        /* Timer Bar */
+        .timer-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background-color: var(--card-bg); padding: 12px 15px;
+            display: flex; flex-direction: column; align-items: center;
+            border-top: 2px solid var(--accent); z-index: 1000;
+        }
+
+        .timer-display {
+            font-size: 2.2rem; font-weight: bold; margin-bottom: 10px;
+            font-variant-numeric: tabular-nums; letter-spacing: 2px;
+        }
+
+        .timer-controls { 
+            display: flex; gap: 8px; width: 100%; justify-content: space-between; flex-wrap: nowrap; margin-bottom: 8px;
+        }
+        
+        .timer-controls-bottom {
+            display: flex; gap: 8px; width: 100%; justify-content: space-between;
+        }
+
+        button {
+            padding: 10px 5px; border: none; border-radius: 6px;
+            background-color: #334155; color: white; font-weight: bold;
+            cursor: pointer; transition: background 0.2s; flex: 1; font-size: 0.9rem;
+        }
+
+        button:active { transform: scale(0.95); }
+        .btn-start { background-color: var(--success); color: white; font-size: 1rem; padding: 12px;}
+        .btn-stop { background-color: var(--danger); font-size: 1rem; padding: 12px;}
+        
+        .custom-timer-group {
+            display: flex; gap: 5px; flex: 1.5;
+        }
+        
+        .custom-timer-group input {
+            width: 100%; padding: 5px; border-radius: 6px;
+            border: 1px solid #334155; background-color: #0f172a;
+            color: white; text-align: center; font-size: 0.9rem;
+        }
+
+        .timer-active { color: var(--success); }
+        .timer-done { color: var(--danger); animation: blink 1s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Coach Virtual</h1>
+        <p class="subtitle">Protocolo Cutting & Lombar Safe</p>
+    </header>
+
+    <select class="day-selector" id="day-selector">
+        <option value="0">DIA 1 – PUSH (Peito, Ombro, Tríceps)</option>
+        <option value="1">DIA 2 – PULL (Costas e Bíceps)</option>
+        <option value="2">DIA 3 – PERNAS COMPLETO</option>
+        <option value="3">DIA 4 – UPPER (Metabólico)</option>
+        <option value="4">DIA 5 – LOWER (Quadríceps e Glúteo)</option>
+    </select>
+
+    <div id="workout-container"></div>
+
+    <div class="timer-bar">
+        <div class="timer-display" id="time-display">00:00</div>
+        
+        <!-- Botões de Tempo e Input Customizado -->
+        <div class="timer-controls">
+            <button onclick="setTimer(60)">60s</button>
+            <button onclick="setTimer(90)">90s</button>
+            <div class="custom-timer-group">
+                <input type="number" id="custom-time-input" placeholder="Segs" min="1">
+                <button onclick="setCustomTimer()">OK</button>
+            </div>
+        </div>
+        
+        <!-- Botões de Ação -->
+        <div class="timer-controls-bottom">
+            <button class="btn-start" onclick="startTimer()">▶ Play</button>
+            <button class="btn-stop" onclick="stopTimer()">■ Stop</button>
+        </div>
+    </div>
+
+    <script>
+        const workouts = [
+            // DIA 1
+            [
+                { name: "Supino Inclinado Halter", reps: "4x 6-10", tips: "Banco 30°. Lombar colada no encosto." },
+                { name: "Supino Reto Máquina", reps: "3x 8-12", tips: "Estabilidade total. Descer até 90°." },
+                { name: "Crossover Polia", reps: "3x 12-15", tips: "Sem jogar o tronco pra frente." },
+                { name: "Desenvolvimento Máquina", reps: "3x 8-10", tips: "Substitui o halter livre para proteger a coluna." },
+                { name: "Elevação Lateral Sentado", reps: "3x 12-15", tips: "Sentado no banco com encosto a 90°." },
+                { name: "Tríceps Corda Polia", reps: "3x 10-12", tips: "Travar abdômen. Postura ereta." }
+            ],
+            // DIA 2
+            [
+                { name: "Puxada Aberta Frente", reps: "4x 8-12", tips: "Cuidado para não hiperestender a lombar na descida." },
+                { name: "Remada Máquina Articulada", reps: "3x 8-12", tips: "<strong>Substitui a Remada Curvada.</strong> Peito no apoio 100% do tempo." },
+                { name: "Remada Unilateral Máquina", reps: "3x 8-12", tips: "Apoio no peito para evitar torção da coluna." },
+                { name: "Face Pull Polia", reps: "3x 12-15", tips: "Foco em posterior de ombro." },
+                { name: "Rosca Scott Máquina", reps: "3x 10-12", tips: "Apoio total dos braços, lombar isolada." }
+            ],
+            // DIA 3
+            [
+                { name: "Leg Press 45°", reps: "4x 8-12", tips: "<strong>Substitui o Agachamento.</strong> Lombar chapada no banco, não deixe o quadril descolar." },
+                { name: "Cadeira Extensora", reps: "3x 12-15", tips: "Focar em segurar a volta (fase excêntrica)." },
+                { name: "Cadeira Flexora", reps: "3x 10-12", tips: "Mais segura que a mesa flexora para a sua L4-L5." },
+                { name: "Afundo no Smith", reps: "3x 10 (cada)", tips: "<strong>Substitui a Passada.</strong> Tronco reto, barra guiada tira a instabilidade." },
+                { name: "Panturrilha no Leg Press", reps: "4x 12-15", tips: "Não sobrecarrega a coluna como as máquinas em pé." }
+            ],
+            // DIA 4
+            [
+                { name: "Supino Reto Halter", reps: "3x 12", tips: "Controle total, pés fixos no chão." },
+                { name: "Remada Baixa Triângulo", reps: "3x 12", tips: "Manter a curvatura natural da coluna, sem ir muito pra frente." },
+                { name: "Elevação Lateral Sentado", reps: "3x 15", tips: "Foco no deltoide, sem roubar com as costas." },
+                { name: "Bi-set: Rosca Polia + Tríceps Polia", reps: "3x 12", tips: "Fazer um seguido do outro. Postura travada." }
+            ],
+            // DIA 5
+            [
+                { name: "Leg Press Horizontal", reps: "4x 8-12", tips: "<strong>Substitui o Hack.</strong> Pés mais baixos na plataforma para focar no quadríceps." },
+                { name: "Afundo com Halteres", reps: "3x 10", tips: "Passo no mesmo lugar, descendo reto." },
+                { name: "Cadeira Extensora", reps: "3x 15", tips: "Série metabólica (queimação)." },
+                { name: "Cadeira Abdutora", reps: "3x 10-12", tips: "<strong>Substitui o Glute Bridge.</strong> Ativa glúteo médio com segurança total." },
+                { name: "Panturrilha Sentado (Máquina)", reps: "4x 15", tips: "Isola o sóleo." }
+            ]
+        ];
+
+        function renderWorkout() {
+            const container = document.getElementById("workout-container");
+            const daySelector = document.getElementById("day-selector");
+            
+            if (!container || !daySelector) return;
+            
+            const dayIndex = daySelector.value;
+            const exercises = workouts[dayIndex];
+            
+            container.innerHTML = ""; 
+
+            exercises.forEach((ex, index) => {
+                const card = document.createElement("div");
+                card.className = "exercise-card";
+                card.innerHTML = `
+                    <div class="exercise-header">
+                        <span>${index + 1}. ${ex.name}</span>
+                        <span class="sets-reps">${ex.reps}</span>
+                    </div>
+                    <div class="details">${ex.tips}</div>
+                    <div class="input-group">
+                        <input type="number" placeholder="Kg">
+                        <input type="number" placeholder="Reps">
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Timer Logic
+        let countdown;
+        let timeLeft = 0;
+        let isRunning = false;
+
+        function updateDisplay(seconds) {
+            const display = document.getElementById('time-display');
+            if (!display) return;
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            display.textContent = `${m}:${s}`;
+        }
+
+        function setTimer(seconds) {
+            stopTimer();
+            timeLeft = seconds;
+            updateDisplay(timeLeft);
+            const display = document.getElementById('time-display');
+            display.classList.remove('timer-done', 'timer-active');
+            
+            // Limpa o input customizado ao usar um atalho
+            document.getElementById('custom-time-input').value = '';
+        }
+
+        function setCustomTimer() {
+            const inputVal = document.getElementById('custom-time-input').value;
+            const seconds = parseInt(inputVal);
+            if (!isNaN(seconds) && seconds > 0) {
+                setTimer(seconds);
+            }
+        }
+
+        function startTimer() {
+            if (isRunning || timeLeft === 0) return;
+            isRunning = true;
+            const display = document.getElementById('time-display');
+            display.classList.add('timer-active');
+            display.classList.remove('timer-done');
+
+            countdown = setInterval(() => {
+                timeLeft--;
+                updateDisplay(timeLeft);
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdown);
+                    isRunning = false;
+                    display.classList.remove('timer-active');
+                    display.classList.add('timer-done');
+                    if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(countdown);
+            isRunning = false;
+            const display = document.getElementById('time-display');
+            if(display) display.classList.remove('timer-active', 'timer-done');
+        }
+
+        // Inicializa o app apenas quando a página carregar por completo
+        document.addEventListener('DOMContentLoaded', () => {
+            renderWorkout();
+            document.getElementById("day-selector").addEventListener("change", renderWorkout);
+        });
+    </script>
+</body>
+</html>
